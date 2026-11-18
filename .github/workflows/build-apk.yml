@@ -11,6 +11,9 @@ on:
       - 'manifest.json'
       - 'icon-512.png'
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-24.04
@@ -124,3 +127,10 @@ jobs:
         with:
           name: MedFlow-APK
           path: MedFlow.apk
+
+      - name: Publish to the public download link
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view android >/dev/null 2>&1 || gh release create android --title "MedFlow Android app" --notes "Latest MedFlow APK. Direct link: https://github.com/${{ github.repository }}/releases/download/android/MedFlow.apk" --latest
+          gh release upload android MedFlow.apk --clobber
