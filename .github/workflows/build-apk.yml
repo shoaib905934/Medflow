@@ -13,21 +13,25 @@ on:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       SITE_URL: https://shoaib905934.github.io/Medflow/
       SITE_HOST: shoaib905934.github.io
       APP_ID: com.medflow.app
       APP_NAME: MedFlow
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK (already on the runner)
+        run: |
+          echo "SDK at $ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" > /dev/null
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -38,6 +42,7 @@ jobs:
           set -e
           mkdir -p twa/app/src/main/res/values twa/app/src/main/res/mipmap-xxxhdpi twa/app/src/main/res/mipmap-xxhdpi twa/app/src/main/res/mipmap-xhdpi twa/app/src/main/res/mipmap-hdpi twa/app/src/main/res/mipmap-mdpi
           cd twa
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositories { google(); mavenCentral() } }
