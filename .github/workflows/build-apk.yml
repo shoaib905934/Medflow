@@ -1,0 +1,121 @@
+name: Build Android APK
+
+# Builds an installable MedFlow APK on GitHub's servers.
+# The APK opens your live site, so app updates you push to GitHub Pages reach it automatically.
+# Run it any time: Actions tab -> "Build Android APK" -> "Run workflow". Download from the run's "Artifacts".
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-apk.yml'
+      - 'manifest.json'
+      - 'icon-512.png'
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      SITE_URL: https://shoaib905934.github.io/Medflow/
+      SITE_HOST: shoaib905934.github.io
+      APP_ID: com.medflow.app
+      APP_NAME: MedFlow
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Create the Android project (Trusted Web Activity)
+        run: |
+          set -e
+          mkdir -p twa/app/src/main/res/values twa/app/src/main/res/mipmap-xxxhdpi twa/app/src/main/res/mipmap-xxhdpi twa/app/src/main/res/mipmap-xhdpi twa/app/src/main/res/mipmap-hdpi twa/app/src/main/res/mipmap-mdpi
+          cd twa
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+          rootProject.name = 'medflow'
+          include ':app'
+          EOF
+          cat > build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.5.2' apply false }
+          EOF
+          cat > gradle.properties <<'EOF'
+          android.useAndroidX=true
+          org.gradle.jvmargs=-Xmx2g
+          EOF
+          cat > app/build.gradle <<EOF
+          plugins { id 'com.android.application' }
+          android {
+            namespace '${APP_ID}'
+            compileSdk 34
+            defaultConfig {
+              applicationId '${APP_ID}'
+              minSdk 21
+              targetSdk 34
+              versionCode ${GITHUB_RUN_NUMBER}
+              versionName '1.0.${GITHUB_RUN_NUMBER}'
+            }
+            buildTypes { release { minifyEnabled false } }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+          }
+          dependencies { implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0' }
+          EOF
+          cat > app/src/main/AndroidManifest.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <application android:label="${APP_NAME}" android:icon="@mipmap/ic_launcher" android:allowBackup="true"
+                android:theme="@android:style/Theme.Translucent.NoTitleBar">
+              <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
+              <activity android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+                  android:exported="true" android:label="${APP_NAME}">
+                <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL" android:value="${SITE_URL}" />
+                <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR" android:resource="@color/status" />
+                <meta-data android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR" android:resource="@color/status" />
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+                <intent-filter android:autoVerify="true">
+                  <action android:name="android.intent.action.VIEW" />
+                  <category android:name="android.intent.category.DEFAULT" />
+                  <category android:name="android.intent.category.BROWSABLE" />
+                  <data android:scheme="https" android:host="${SITE_HOST}" android:pathPrefix="/Medflow" />
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+          cat > app/src/main/res/values/strings.xml <<EOF
+          <resources>
+            <string name="asset_statements">[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "web", "site": "https://${SITE_HOST}" } }]</string>
+          </resources>
+          EOF
+          cat > app/src/main/res/values/colors.xml <<'EOF'
+          <resources><color name="status">#FFFFFF</color></resources>
+          EOF
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp ../icon-512.png app/src/main/res/mipmap-$d/ic_launcher.png; done
+
+      - name: Build APK
+        working-directory: twa
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Show signing fingerprint (for assetlinks.json, optional)
+        working-directory: twa
+        run: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep -E "SHA256" || true
+
+      - name: Rename APK
+        run: cp twa/app/build/outputs/apk/debug/app-debug.apk MedFlow.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MedFlow-APK
+          path: MedFlow.apk
