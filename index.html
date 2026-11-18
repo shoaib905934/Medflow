@@ -851,7 +851,7 @@
         <div class="px-5 py-4 border-b border-hairline flex items-center justify-between">
           <div>
             <h2 id="bills-history-title" class="font-display text-base font-bold text-slate-900">Individual Bills History</h2>
-            <p class="text-xs text-slate-500">View receipt, download vector PDF, reprint, or delete with optional stock restoration</p>
+            <p class="text-xs text-slate-500">View, download PDF, reprint, void (keeps a record) or delete (removes it) &mdash; stock can be put back either way</p>
           </div>
         </div>
 
@@ -1253,112 +1253,120 @@
               </div>
             </div>
 
-            <!-- Direct 1-Click Google Drive API Backup & Restore -->
+            <!-- Google Drive: one-tap connect (user signs in with their own Google account) -->
             <div class="p-4 rounded-2xl border border-teal-200/80 bg-teal-50/40 space-y-3.5">
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-xl bg-white border border-teal-200/80 shadow-2xs flex items-center justify-center text-teal-700 shrink-0">
-                    <i data-lucide="cloud-upload" class="w-4 h-4"></i>
-                  </div>
-                  <div>
-                    <h3 class="text-xs font-bold text-slate-900">Direct Google Drive Cloud Sync</h3>
-                    <p class="text-[11px] text-slate-600">Uploads <code class="font-mono text-[10px] bg-white px-1 py-0.5 rounded border border-hairline">MedFlow-Backup-YYYY-MM-DD.json</code> straight to your Google Drive</p>
-                  </div>
+              <div class="flex items-start gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-white border border-teal-200/80 shadow-2xs flex items-center justify-center text-teal-700 shrink-0">
+                  <i data-lucide="cloud" class="w-4 h-4"></i>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-xs font-bold text-slate-900">Your Google Drive</h3>
+                  <p id="drive-conn-status" class="text-[11px] text-slate-600">Not connected</p>
                 </div>
               </div>
 
-              <!-- Google OAuth Client ID Input -->
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <label for="brand-google-client-id" class="text-[11px] font-semibold text-slate-700">Google OAuth 2.0 Client ID <span class="text-slate-400 font-normal">(For 1-click direct upload)</span></label>
-                  <button type="button" onclick="toggleGoogleSetupGuide()" class="text-[11px] font-semibold text-teal-700 hover:text-teal-800 underline underline-offset-2">
-                    Setup Guide
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  id="brand-google-client-id"
-                  oninput="saveGoogleClientIdInput()"
-                  placeholder="1234567890-abcdefg.apps.googleusercontent.com"
-                  class="w-full px-3 py-2 bg-white border border-hairline focus:border-teal-600 rounded-xl text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none transition"
-                />
-              </div>
-
-              <!-- Collapsible 3-Step Setup Guide -->
-              <div id="google-setup-guide" class="hidden p-3.5 rounded-xl bg-white border border-hairline text-[11px] text-slate-600 space-y-2">
-                <p class="font-bold text-slate-800">How to enable 1-click Google Drive uploads (takes 2 minutes):</p>
-                <ol class="list-decimal list-inside space-y-1 leading-relaxed">
-                  <li>Open <strong>Google Cloud Console</strong> &rarr; create a project &rarr; enable <strong>Google Drive API</strong>.</li>
-                  <li>Go to <strong>Credentials &rarr; Create OAuth Client ID &rarr; Web application</strong>.</li>
-                  <li>Add this exact Authorized JavaScript Origin:</li>
-                </ol>
-                <div class="flex items-center gap-2 pt-0.5">
-                  <code id="current-origin-code" class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-hairline font-mono text-[11px] text-slate-800 truncate"></code>
-                  <button type="button" onclick="copyCurrentOrigin()" class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold text-[11px] hover:bg-slate-800 transition shrink-0">
-                    Copy URL
-                  </button>
-                </div>
-              </div>
-
-              <!-- Google Drive Action Buttons -->
-              <div class="flex flex-wrap items-center gap-2.5 pt-0.5">
-                <button
-                  type="button"
-                  id="btn-gdrive-backup"
-                  onclick="backupToGoogleDrive()"
-                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-2 transition"
-                >
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" id="btn-gdrive-connect" onclick="connectGoogleDrive()"
+                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-2 transition">
+                  <i data-lucide="log-in" class="w-4 h-4"></i>
+                  <span>Connect Google Drive</span>
+                </button>
+                <button type="button" id="btn-gdrive-backup" onclick="backupToGoogleDrive()"
+                  class="hidden px-4 py-2.5 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center gap-2 transition">
                   <i data-lucide="cloud-upload" class="w-4 h-4"></i>
-                  <span>Backup Now to Google Drive</span>
+                  <span>Back up now</span>
                 </button>
-
-                <button
-                  type="button"
-                  id="btn-gdrive-restore"
-                  onclick="openGoogleDriveRestoreModal()"
-                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline shadow-2xs flex items-center gap-2 transition"
-                >
+                <button type="button" id="btn-gdrive-restore" onclick="openGoogleDriveRestoreModal()"
+                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline shadow-2xs flex items-center gap-2 transition">
                   <i data-lucide="cloud-download" class="w-4 h-4 text-teal-600"></i>
-                  <span>Restore from Google Drive</span>
+                  <span>Restore from Drive</span>
+                </button>
+                <a id="btn-gdrive-open" href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener"
+                  class="hidden px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline flex items-center gap-1.5 transition">
+                  <i data-lucide="folder-open" class="w-3.5 h-3.5 text-teal-600"></i>
+                  <span>Open backup folder</span>
+                </a>
+                <button type="button" id="btn-gdrive-disconnect" onclick="disconnectGoogleDrive()"
+                  class="hidden px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition">
+                  Disconnect
                 </button>
               </div>
+
+              <p class="text-[11px] text-slate-500 leading-relaxed">Once connected, every bill and stock change is copied to a <b>MedFlow Backups</b> folder in this Google account automatically (plus one dated copy per day). The app can only see the files it creates &mdash; never your other Drive files.</p>
+
+              <!-- Advanced: only the app owner needs this, and only if APP_CONFIG in index.html is empty -->
+              <details id="drive-advanced" class="rounded-xl bg-white border border-hairline">
+                <summary class="px-3 py-2 text-[11px] font-semibold text-slate-500 cursor-pointer select-none">Advanced (app owner only): Google Client ID</summary>
+                <div class="px-3 pb-3 space-y-2">
+                  <input type="text" id="brand-google-client-id" onchange="saveGoogleClientIdInput()"
+                    placeholder="1234567890-abcdefg.apps.googleusercontent.com"
+                    class="w-full px-3 py-2 bg-canvas border border-hairline focus:border-teal-600 rounded-xl text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none transition" />
+                  <div id="google-setup-guide" class="text-[11px] text-slate-600 space-y-1.5">
+                    <p>Best: paste the Client ID into <code class="font-mono">APP_CONFIG</code> in index.html once, so no hospital user ever sees this. Authorized JavaScript origin to add in Google Cloud:</p>
+                    <div class="flex items-center gap-2">
+                      <code id="current-origin-code" class="flex-1 px-2.5 py-1.5 rounded-lg bg-canvas border border-hairline font-mono text-[11px] text-slate-800 truncate"></code>
+                      <button type="button" onclick="copyCurrentOrigin()" class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold text-[11px] hover:bg-slate-800 transition shrink-0">Copy</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
 
-            <!-- Zero-Config Local Backup & Quick Drive Open -->
-            <div class="pt-1 flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onclick="downloadAndOpenGoogleDrive()"
-                class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-2 transition"
-                title="Downloads JSON backup immediately and opens your Google Drive folder"
-              >
-                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                <span>Download &amp; Open Google Drive</span>
-              </button>
+            <!-- MEGA cloud backup: each user signs in with their OWN MEGA account -->
+            <div class="p-4 rounded-2xl border border-rose-200/80 bg-rose-50/30 space-y-3.5">
+              <div class="flex items-start gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-white border border-rose-200/80 shadow-2xs flex items-center justify-center text-rose-600 font-extrabold text-sm shrink-0">M</div>
+                <div class="min-w-0">
+                  <h3 class="text-xs font-bold text-slate-900">MEGA Cloud Backup</h3>
+                  <p id="mega-conn-status" class="text-[11px] text-slate-600">Not connected</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" id="btn-mega-connect" onclick="openMegaLogin('connect')"
+                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs flex items-center gap-2 transition">
+                  <i data-lucide="log-in" class="w-4 h-4"></i><span>Connect MEGA</span>
+                </button>
+                <button type="button" id="btn-mega-backup" onclick="megaBackupNow()"
+                  class="hidden px-4 py-2.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs flex items-center gap-2 transition">
+                  <i data-lucide="cloud-upload" class="w-4 h-4"></i><span>Back up now</span>
+                </button>
+                <button type="button" id="btn-mega-restore" onclick="openMegaRestore()"
+                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline shadow-2xs flex items-center gap-2 transition">
+                  <i data-lucide="cloud-download" class="w-4 h-4 text-rose-600"></i><span>Restore from MEGA</span>
+                </button>
+                <button type="button" id="btn-mega-disconnect" onclick="disconnectMega()"
+                  class="hidden px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition">Disconnect</button>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed">Each user signs in with their <b>own</b> MEGA account; backups go to a <b>MedFlow Backups</b> folder there, automatically after every bill / stock change (plus one dated copy per day). This phone keeps MEGA's login session &mdash; not the password &mdash; so backups keep running until you tap Disconnect.</p>
+            </div>
 
-              <button
-                type="button"
-                onclick="exportFullBackupJson()"
-                class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline flex items-center gap-1.5 transition"
-              >
-                <i data-lucide="download" class="w-3.5 h-3.5 text-slate-600"></i>
-                <span>Download File (.json)</span>
-              </button>
-
-              <label class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline cursor-pointer flex items-center gap-1.5 transition">
-                <i data-lucide="upload" class="w-3.5 h-3.5 text-teal-600"></i>
-                <span>Restore File (.json)</span>
-                <input type="file" accept=".json,application/json" onchange="importFullBackupJson(event)" class="hidden" />
-              </label>
-
-              <button
-                type="button"
-                onclick="promptResetDemoData()"
-                class="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 flex items-center gap-1.5 transition ml-auto"
-              >
-                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                <span>Erase All Data</span>
-              </button>
+            <!-- No-setup options: works without any Client ID -->
+            <div class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Manual backup (no Google setup needed)</p>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" onclick="shareBackupToDriveApp()"
+                  class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-2 transition"
+                  title="Opens the phone share sheet — pick Google Drive">
+                  <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                  <span>Save backup to Drive (share)</span>
+                </button>
+                <button type="button" onclick="exportFullBackupJson()"
+                  class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline flex items-center gap-1.5 transition">
+                  <i data-lucide="download" class="w-3.5 h-3.5 text-slate-600"></i>
+                  <span>Download file (.json)</span>
+                </button>
+                <label class="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline cursor-pointer flex items-center gap-1.5 transition">
+                  <i data-lucide="upload" class="w-3.5 h-3.5 text-teal-600"></i>
+                  <span>Restore from file</span>
+                  <input type="file" accept=".json,application/json" onchange="importFullBackupJson(event)" class="hidden" />
+                </label>
+                <button type="button" onclick="promptResetDemoData()"
+                  class="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 flex items-center gap-1.5 transition ml-auto">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                  <span>Erase All Data</span>
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-400">On Android, &ldquo;Save backup to Drive&rdquo; opens the share sheet &mdash; choose <b>Drive</b>. To restore, tap &ldquo;Restore from file&rdquo; and pick the file from Drive.</p>
             </div>
           </div>
 
@@ -1406,8 +1414,40 @@
       <button type="button" onclick="completeSetup()" class="w-full mt-4 px-4 py-3 rounded-xl text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white transition">Save &amp; Start Billing</button>
       <div class="my-4 border-t border-hairline"></div>
       <p class="text-xs font-semibold text-slate-700 mb-2">Cleared your data or new phone? Get everything back:</p>
-      <div id="setup-client-wrap"><input id="setup-client-id" type="text" placeholder="Google OAuth Client ID" class="w-full mb-2 px-3.5 py-2.5 bg-canvas border border-hairline rounded-xl text-xs font-mono focus:outline-none focus:border-teal-600" /></div>
+      <div id="setup-client-wrap"><input id="setup-client-id" type="text" placeholder="Google Client ID (app owner only)" class="w-full mb-2 px-3.5 py-2.5 bg-canvas border border-hairline rounded-xl text-xs font-mono focus:outline-none focus:border-teal-600" /></div>
       <button type="button" onclick="setupRestoreFromDrive()" class="w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white transition">Restore from Google Drive</button>
+      <button type="button" onclick="openMegaLogin('restore')" class="mt-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition">Restore from MEGA</button>
+      <label class="mt-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-hairline cursor-pointer flex items-center justify-center transition">Restore from a backup file<input type="file" accept=".json,application/json" onchange="importFullBackupJson(event)" class="hidden" /></label>
+    </div>
+  </div>
+
+  <!-- MEGA sign-in -->
+  <div id="mega-modal" class="hidden fixed inset-0 z-[65] bg-slate-900/50 flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-paper w-full max-w-sm p-6 animate-modal">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="font-display text-base font-extrabold text-slate-900">Sign in to MEGA</h2>
+        <button type="button" onclick="closeMegaLogin()" class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 text-lg leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">Use your own MEGA account (free at mega.nz). Your password is used once to sign in and is not stored.</p>
+      <form onsubmit="submitMegaLogin(event)" class="space-y-3">
+        <input id="mega-email" type="email" required autocomplete="username" placeholder="MEGA email" class="w-full px-3.5 py-2.5 bg-canvas border border-hairline rounded-xl text-sm focus:outline-none focus:border-rose-500" />
+        <input id="mega-password" type="password" required autocomplete="current-password" placeholder="MEGA password" class="w-full px-3.5 py-2.5 bg-canvas border border-hairline rounded-xl text-sm focus:outline-none focus:border-rose-500" />
+        <input id="mega-2fa" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code from your authenticator app" class="hidden w-full px-3.5 py-2.5 bg-canvas border border-hairline rounded-xl text-sm font-mono focus:outline-none focus:border-rose-500" />
+        <p id="mega-login-msg" class="hidden text-xs font-semibold text-rose-700"></p>
+        <button type="submit" id="mega-login-btn" class="w-full px-4 py-3 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white transition disabled:opacity-50">Sign in</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MEGA restore list -->
+  <div id="mega-restore-modal" class="hidden fixed inset-0 z-[65] bg-slate-900/50 flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl shadow-paper w-full max-w-lg max-h-[85vh] flex flex-col animate-modal">
+      <div class="px-6 py-4 border-b border-hairline flex items-center justify-between">
+        <h3 class="font-display text-sm font-bold text-slate-900">Restore from MEGA</h3>
+        <button type="button" onclick="closeMegaRestore()" class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 text-lg leading-none">&times;</button>
+      </div>
+      <div id="mega-files-list" class="p-5 overflow-y-auto flex-1 space-y-2.5"></div>
+      <div class="px-6 py-3 border-t border-hairline text-[11px] text-slate-400">Restoring replaces the data on this device.</div>
     </div>
   </div>
 
@@ -1875,6 +1915,9 @@
       driveFileId: '',
       lastDailySnapshot: '',
       driveConnected: false,
+      driveEmail: '',
+      driveFolderId: '',
+      invoiceSeq: {},
       setupDone: false
     };
 
@@ -1961,7 +2004,15 @@
           if (!isNaN(seqPart) && seqPart > maxSeq) maxSeq = seqPart;
         }
       });
+      const used = (store.settings.invoiceSeq || {})[compactDate] || 0;
+      if (used > maxSeq) maxSeq = used;
       return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
+    }
+    function markInvoiceNumberUsed(invoiceNo) {
+      const m = /^INV-(\d{8})-(\d+)$/.exec(invoiceNo || '');
+      if (!m) return;
+      const seq = store.settings.invoiceSeq || (store.settings.invoiceSeq = {});
+      seq[m[1]] = Math.max(seq[m[1]] || 0, parseInt(m[2], 10));
     }
 
     function formatCurrency(amount) {
@@ -2347,6 +2398,8 @@
         dbCountsEl.textContent = `${store.invoices.length} Bills \u2022 ${store.inventory.length} Stock Items`;
       }
 
+      updateDriveCardUI();
+      updateMegaCardUI();
       const lastBackupIso = store.settings.lastBackupAt;
       if (lastBackupEl && reminderBadge) {
         if (!lastBackupIso) {
@@ -2373,7 +2426,8 @@
       store.settings.googleClientId = val;
       cachedGoogleAccessToken = ''; driveToken = ''; driveTokenExp = 0;
       persistStore();
-      if (val) showToast('Client ID saved. Tap "Back up to Google Drive" once to connect \u2014 after that backups run automatically.', 'success');
+      updateDriveCardUI();
+      if (val) showToast('Client ID saved. Now tap "Connect Google Drive".', 'success');
     }
 
     function toggleGoogleSetupGuide() {
@@ -3458,6 +3512,9 @@
                   <button type="button" onclick="promptVoidInvoice('${inv.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition" title="Void Bill">
                     <i data-lucide="ban" class="w-4 h-4"></i>
                   </button>
+                  <button type="button" onclick="promptDeleteInvoice('${inv.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-700 hover:bg-rose-50 transition" title="Delete Bill">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -3758,6 +3815,9 @@
         closeConfirmModal();
         closeGoogleDriveRestoreModal();
         closeAndroidApkModal();
+        closeStockInModal();
+        closeMegaLogin();
+        closeMegaRestore();
         closeAutocomplete();
       }
     });
@@ -3765,12 +3825,14 @@
     // =====================================================================
     // MEDFLOW v4 — HARDENED STORAGE, DRIVE AUTO-SYNC, STOCK RULES, SEARCH
     // =====================================================================
-    // OWNER CONFIG: paste your Google OAuth Client ID here ONCE before deploying.
-    // With it built in, a user who clears browser data can sign in and get everything back.
+    // OWNER CONFIG (do this ONCE before deploying — see README step 2).
+    // Paste your Google OAuth Client ID between the quotes. Then hospital users only ever see
+    // a "Connect Google Drive" button: they sign in with THEIR Google account and their data
+    // goes to THEIR Drive. They never see or type a Client ID.
     const APP_CONFIG = { googleClientId: '' };
     const NON_STOCK_CATEGORIES = ['Consultation', 'Lab Test', 'Service'];
     const STOCK_CATEGORIES = ['Medicine', 'Lab Test', 'Consultation', 'Supplies'];
-    const SETTINGS_META_KEYS = ['lastBackupAt', 'driveFileId', 'lastDailySnapshot', 'driveConnected'];
+    const SETTINGS_META_KEYS = ['lastBackupAt', 'driveFileId', 'lastDailySnapshot', 'driveConnected', 'driveEmail', 'driveFolderId'];
     const AUTO_BACKUP_NAME = 'MedFlow-AutoBackup.json';
 
     let dbHealthy = false;
@@ -3898,7 +3960,7 @@
           tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
         });
         Object.keys(plan).forEach(n => { savedSnap[n] = plan[n].snap; });
-        if (dataChanged) scheduleDriveSync();
+        if (dataChanged) { scheduleDriveSync(); scheduleMegaSync(); }
       } catch (err) {
         console.error('Failed to save to IndexedDB:', err);
         showToast('Could not save to phone storage! Export a backup now.', 'error');
@@ -3990,6 +4052,7 @@
         if (sm) sm.classList.add('hidden');
         populateBrandingForm(); initNewBillDraft(); renderSalesView(); renderInventoryView(); syncHeaderState();
         showToast(`Restored ${label}: ${v.invoices.length} bills, ${v.inventory.length} stock items.`, 'success');
+        if (typeof opts.onDone === 'function') opts.onDone();
       };
       if (opts.skipConfirm || (!store.inventory.length && !store.invoices.length)) return run();
       openConfirmModal(
@@ -4019,6 +4082,7 @@
         async () => {
           const t = window.prompt('Type DELETE (capital letters) to confirm erasing all data:');
           if (t !== 'DELETE') { showToast('Erase cancelled.', 'success'); return; }
+          clearMegaSession();
           store.settings = { ...DEFAULT_SETTINGS, googleClientId: store.settings.googleClientId };
           store.inventory = []; store.invoices = []; store.stockLog = [];
           await persistStore();
@@ -4092,6 +4156,7 @@
         const tc = window.google.accounts.oauth2.initTokenClient({
           client_id: cid,
           scope: 'https://www.googleapis.com/auth/drive.file',
+          hint: store.settings.driveEmail || undefined,
           callback: (r) => {
             if (r && r.access_token) {
               driveToken = r.access_token; cachedGoogleAccessToken = r.access_token;
@@ -4109,9 +4174,7 @@
 
     function requestGoogleDriveToken(onSuccess) {
       if (!getClientId()) {
-        const g = document.getElementById('google-setup-guide');
-        if (g) g.classList.remove('hidden');
-        showToast('Enter your Google OAuth Client ID first.', 'warning');
+        noClientIdNotice();
         return;
       }
       getDriveToken({ interactive: true }).then(onSuccess).catch(() => showToast('Google authorization was cancelled or failed.', 'error'));
@@ -4139,7 +4202,9 @@
         if (r.status !== 404) throw new Error('UPLOAD_' + r.status);
       }
       const b = 'mf_' + Date.now();
-      const body = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name, mimeType: 'application/json' })}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${json}\r\n--${b}--`;
+      const meta = { name, mimeType: 'application/json' };
+      if (store.settings.driveFolderId) meta.parents = [store.settings.driveFolderId];
+      const body = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${json}\r\n--${b}--`;
       const r = await driveApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
         { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body }, token);
       if (!r.ok) throw new Error('UPLOAD_' + r.status);
@@ -4155,6 +4220,7 @@
     function setDriveStatus(s) {
       driveStatus = s;
       syncHeaderState();
+      updateDriveCardUI();
       let fab = document.getElementById('cloud-fab');
       if (!fab) {
         fab = document.createElement('button');
@@ -4186,6 +4252,7 @@
       let ok = false;
       try {
         const token = await getDriveToken({ interactive });
+        await ensureDriveFolder(token);
         const json = JSON.stringify(buildBackupPayloadObject());
         let id = store.settings.driveFileId || '';
         if (!id) {
@@ -4247,14 +4314,381 @@
 
     async function backupToGoogleDrive() {
       if (!getClientId()) {
-        const g = document.getElementById('google-setup-guide');
-        if (g) g.classList.remove('hidden');
-        showToast('Enter your Google OAuth Client ID first.', 'warning');
+        noClientIdNotice();
         return;
       }
       if (!store.invoices.length && !store.inventory.length) { showToast('Nothing to back up yet.', 'warning'); return; }
       const ok = await syncToDrive({ interactive: true, force: true });
-      showToast(ok ? 'Backed up to Google Drive. Automatic backup is now ON.' : 'Google Drive backup failed. Check Client ID and internet.', ok ? 'success' : 'error');
+      showToast(ok ? 'Backed up to Google Drive. Automatic backup is ON.' : 'Google Drive backup failed. Check internet and try again.', ok ? 'success' : 'error');
+    }
+
+    // ---------------------------------------------------------------------
+    // ONE-TAP CONNECT / DISCONNECT, BACKUP FOLDER, NO-SETUP SHARE
+    // ---------------------------------------------------------------------
+    const DRIVE_FOLDER_NAME = 'MedFlow Backups';
+
+    function noClientIdNotice() {
+      const d = document.getElementById('drive-advanced');
+      if (d) d.open = true;
+      showToast(APP_CONFIG.googleClientId ? 'Google sign-in is not ready. Reload and try again.' :
+        'Google Drive sign-in is not set up in this copy of the app yet. Use "Save backup to Drive (share)" for now.', 'warning');
+    }
+
+    async function ensureDriveFolder(token) {
+      if (store.settings.driveFolderId) return store.settings.driveFolderId;
+      const q = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+      const r = await driveApi(`https://www.googleapis.com/drive/v3/files?q=${q}&pageSize=1&fields=files(id)`, {}, token);
+      if (r.ok) {
+        const d = await r.json();
+        if (d.files && d.files[0]) { store.settings.driveFolderId = d.files[0].id; return d.files[0].id; }
+      }
+      const c = await driveApi('https://www.googleapis.com/drive/v3/files?fields=id', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+      }, token);
+      if (!c.ok) return ''; // fall back to Drive root
+      store.settings.driveFolderId = (await c.json()).id;
+      return store.settings.driveFolderId;
+    }
+
+    async function fetchDriveEmail(token) {
+      try {
+        const r = await driveApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', {}, token);
+        if (r.ok) { const d = await r.json(); if (d.user && d.user.emailAddress) store.settings.driveEmail = d.user.emailAddress; }
+      } catch (e) { /* email is only for display */ }
+    }
+
+    async function connectGoogleDrive() {
+      if (!getClientId()) { noClientIdNotice(); return; }
+      if (!dbHealthy) { showToast('Phone storage unavailable.', 'error'); return; }
+      let token;
+      try { token = await getDriveToken({ interactive: true }); }
+      catch (e) { showToast('Google sign-in was cancelled or blocked. Allow pop-ups and try again.', 'error'); return; }
+      await fetchDriveEmail(token);
+      store.settings.driveConnected = true;
+      await persistStore();
+      updateDriveCardUI();
+      if (!store.invoices.length && !store.inventory.length) {
+        // New phone / cleared data: offer to bring the existing backup back
+        try {
+          const f = await findDriveFile(AUTO_BACKUP_NAME, token);
+          if (f) {
+            openConfirmModal('Backup found in your Google Drive', 'Restore your bills, stock and settings from Google Drive onto this device now?', false,
+              () => restoreDriveFileById(f.id, AUTO_BACKUP_NAME, true, true));
+            return;
+          }
+        } catch (e) { /* fall through */ }
+        showToast(`Connected to ${store.settings.driveEmail || 'Google Drive'}. Backups start with your first bill or stock item.`, 'success');
+        return;
+      }
+      const ok = await syncToDrive({ interactive: true });
+      if (ok) showToast(`Connected to ${store.settings.driveEmail || 'Google Drive'}. Automatic backup is ON.`, 'success');
+    }
+
+    function disconnectGoogleDrive() {
+      openConfirmModal('Disconnect Google Drive?',
+        'Automatic backup stops on this device. Your backups already in Google Drive are NOT deleted, and your data on this phone stays.',
+        false, async () => {
+          try { if (driveToken && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(driveToken, () => {}); } catch (e) {}
+          driveToken = ''; driveTokenExp = 0; cachedGoogleAccessToken = '';
+          Object.assign(store.settings, { driveConnected: false, driveEmail: '', driveFileId: '', driveFolderId: '' });
+          syncPending = false; clearTimeout(syncTimer);
+          await persistStore();
+          setDriveStatus('off');
+          showToast('Google Drive disconnected.', 'success');
+        });
+    }
+
+    function updateDriveCardUI() {
+      const st = document.getElementById('drive-conn-status');
+      if (!st) return;
+      const s = store.settings;
+      const connected = !!(getClientId() && s.driveConnected);
+      const show = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
+      show('btn-gdrive-connect', !connected);
+      show('btn-gdrive-backup', connected);
+      show('btn-gdrive-disconnect', connected);
+      show('btn-gdrive-open', connected);
+      const open = document.getElementById('btn-gdrive-open');
+      if (open) open.href = s.driveFolderId ? `https://drive.google.com/drive/folders/${encodeURIComponent(s.driveFolderId)}` : 'https://drive.google.com/drive/my-drive';
+      const adv = document.getElementById('drive-advanced');
+      if (adv) adv.classList.toggle('hidden', !!APP_CONFIG.googleClientId);
+      if (!getClientId()) { st.textContent = 'Google sign-in not set up yet — use the manual backup below.'; return; }
+      if (!connected) { st.textContent = 'Not connected — tap Connect and sign in with your Google account.'; return; }
+      const last = s.lastBackupAt ? new Date(s.lastBackupAt).toLocaleString() : 'not yet';
+      const msg = { syncing: 'Backing up…', pending: 'Change waiting to upload', reconnect: 'Paused — tap the amber button to sign in again', error: 'Last upload failed', conflict: 'Drive already has a backup — action needed' }[driveStatus];
+      st.textContent = `Connected: ${s.driveEmail || 'Google account'} • Last backup: ${last}${msg ? ' • ' + msg : ''}`;
+    }
+
+    async function shareBackupToDriveApp() {
+      const name = `MedFlow-Backup-${getDateOffsetStr(0)}.json`;
+      const json = JSON.stringify(buildBackupPayloadObject(), null, 2);
+      try {
+        const file = new File([json], name, { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: name });
+          store.settings.lastBackupAt = new Date().toISOString();
+          await persistStore();
+          showToast('Backup shared. Make sure you picked Google Drive.', 'success');
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+      }
+      downloadAndOpenGoogleDrive(); // desktop fallback: download + open Drive to drop it in
+    }
+
+    // ---------------------------------------------------------------------
+    // MEGA CLOUD BACKUP (megajs, loaded only when needed)
+    // Session (not password) is kept in localStorage on THIS device only.
+    // It is never put inside backup files, so exports/backups never leak it.
+    // ---------------------------------------------------------------------
+    const MEGA_LIB_URL = 'https://unpkg.com/megajs@1.3.10/dist/main.browser-umd.js';
+    const MEGA_SESSION_KEY = 'medflow_mega_session';
+    const MEGA_FOLDER = 'MedFlow Backups';
+    let megaStorage = null, megaStatus = 'off', megaTimer = null, megaSyncing = false, megaPending = false, megaResync = false;
+    let megaLoginIntent = 'connect';
+
+    function getMegaSession() { try { return JSON.parse(localStorage.getItem(MEGA_SESSION_KEY) || 'null'); } catch (e) { return null; } }
+    function setMegaSession(obj) { try { localStorage.setItem(MEGA_SESSION_KEY, JSON.stringify(obj)); } catch (e) { showToast('Could not save MEGA login on this device.', 'error'); } }
+    function clearMegaSession() { try { localStorage.removeItem(MEGA_SESSION_KEY); } catch (e) {} megaStorage = null; }
+
+    let megaLibPromise = null;
+    function loadMegaLib() {
+      if (window.mega && window.mega.Storage) return Promise.resolve(window.mega);
+      if (megaLibPromise) return megaLibPromise;
+      megaLibPromise = new Promise((resolve, reject) => {
+        const sc = document.createElement('script');
+        sc.src = MEGA_LIB_URL; sc.async = true;
+        sc.onload = () => (window.mega && window.mega.Storage) ? resolve(window.mega) : reject(new Error('MEGA_LIB'));
+        sc.onerror = () => { megaLibPromise = null; reject(new Error('MEGA_LIB')); };
+        document.head.appendChild(sc);
+      });
+      return megaLibPromise;
+    }
+
+    function megaErrText(e) {
+      const m = String((e && e.message) || e || '');
+      if (/EMFAREQUIRED|-26/.test(m)) return 'MFA';
+      if (/ENOENT|-9\b|Wrong password|EARGS|-2\b/.test(m)) return 'Wrong email or password.';
+      if (/ESID|-15/.test(m)) return 'SESSION';
+      if (/EBLOCKED|-16/.test(m)) return 'This MEGA account is blocked.';
+      if (/EOVERQUOTA|-17|EGOINGOVERQUOTA|-24/.test(m)) return 'Your MEGA storage is full.';
+      if (/MEGA_LIB/.test(m)) return 'Could not load MEGA (check internet).';
+      if (!navigator.onLine || /fetch|Network|Load failed/i.test(m)) return 'NET';
+      return 'MEGA error: ' + m.slice(0, 80);
+    }
+
+    // Returns a ready Storage, reusing the saved session on this device.
+    async function getMegaStorage() {
+      if (megaStorage) return megaStorage;
+      const sess = getMegaSession();
+      if (!sess || !sess.session) throw new Error('NO_SESSION');
+      const mega = await loadMegaLib();
+      const st = mega.Storage.fromJSON(JSON.parse(JSON.stringify(sess.session)));
+      await st.reload(true);
+      st.status = 'ready';
+      megaStorage = st;
+      return st;
+    }
+
+    async function megaFolder(st) {
+      let f = (st.root.children || []).find(n => n.directory && n.name === MEGA_FOLDER);
+      if (!f) f = await st.root.mkdir(MEGA_FOLDER);
+      return f;
+    }
+    function megaBackups(folder) {
+      return (folder.children || []).filter(n => !n.directory && /^MedFlow-.*\.json$/.test(n.name || ''))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    }
+
+    async function megaUploadJson(folder, name, json) {
+      const bytes = new TextEncoder().encode(json);
+      const old = (folder.children || []).filter(n => !n.directory && n.name === name);
+      await folder.upload({ name, size: bytes.length }, bytes).complete;
+      // MEGA has no overwrite: remove older copies only after the new one is safely uploaded
+      for (const o of old) { try { await o.delete(true); } catch (e) { /* harmless leftover */ } }
+    }
+
+    function setMegaStatus(s, detail) {
+      megaStatus = s;
+      const sess = getMegaSession();
+      if (sess) { sess.lastStatus = s; sess.detail = detail || ''; }
+      updateMegaCardUI(detail);
+    }
+
+    function updateMegaCardUI(detail) {
+      const st = document.getElementById('mega-conn-status');
+      if (!st) return;
+      const sess = getMegaSession();
+      const on = !!(sess && sess.session);
+      const show = (id, v) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !v); };
+      show('btn-mega-connect', !on); show('btn-mega-backup', on); show('btn-mega-disconnect', on);
+      if (!on) { st.textContent = 'Not connected — tap Connect MEGA and sign in with your MEGA account.'; return; }
+      const last = sess.lastBackupAt ? new Date(sess.lastBackupAt).toLocaleString() : 'not yet';
+      const extra = { syncing: 'Backing up…', pending: 'Change waiting to upload', error: (detail || sess.detail || 'Last upload failed'), relogin: 'Session ended — tap Connect MEGA again', conflict: 'MEGA already has a backup — choose Restore or Back up now' }[megaStatus];
+      st.textContent = `Connected: ${sess.email || 'MEGA account'} • Last backup: ${last}${extra ? ' • ' + extra : ''}`;
+    }
+
+    function scheduleMegaSync() {
+      if (!getMegaSession()) return;
+      megaPending = true;
+      if (megaStatus !== 'conflict' && megaStatus !== 'relogin') setMegaStatus('pending');
+      clearTimeout(megaTimer);
+      megaTimer = setTimeout(() => syncToMega({}), 8000);
+    }
+
+    async function syncToMega({ force = false } = {}) {
+      const sess = getMegaSession();
+      if (!sess || !dbHealthy) return false;
+      if (!store.invoices.length && !store.inventory.length) return false; // never upload an empty database
+      if (megaStatus === 'relogin' && !force) return false;
+      if (megaSyncing) { megaResync = true; return false; }
+      megaSyncing = true;
+      setMegaStatus('syncing');
+      let ok = false;
+      try {
+        const st = await getMegaStorage();
+        const folder = await megaFolder(st);
+        if (!sess.linked && !force && megaBackups(folder).some(n => n.name === AUTO_BACKUP_NAME)) {
+          setMegaStatus('conflict');
+          return false;
+        }
+        const json = JSON.stringify(buildBackupPayloadObject());
+        await megaUploadJson(folder, AUTO_BACKUP_NAME, json);
+        const today = getDateOffsetStr(0);
+        if (sess.lastDaily !== today) { await megaUploadJson(folder, `MedFlow-Backup-${today}.json`, json); sess.lastDaily = today; }
+        sess.linked = true; sess.lastBackupAt = new Date().toISOString();
+        setMegaSession(sess);
+        store.settings.lastBackupAt = sess.lastBackupAt;
+        ok = true; megaPending = false;
+        setMegaStatus('synced');
+        persistStore();
+      } catch (e) {
+        console.warn('MEGA sync failed:', e);
+        const t = megaErrText(e);
+        megaPending = true;
+        if (t === 'SESSION') { clearMegaSession(); setMegaStatus('relogin'); showToast('MEGA sign-in ended. Open Clinic & Branding → Connect MEGA.', 'warning'); }
+        else if (t === 'NET') setMegaStatus('pending');
+        else { megaStorage = null; setMegaStatus('error', t); }
+      } finally { megaSyncing = false; }
+      if (megaResync) { megaResync = false; scheduleMegaSync(); }
+      return ok;
+    }
+
+    async function megaBackupNow() {
+      if (!store.invoices.length && !store.inventory.length) { showToast('Nothing to back up yet.', 'warning'); return; }
+      const ok = await syncToMega({ force: true });
+      showToast(ok ? 'Backed up to MEGA. Automatic backup is ON.' : 'MEGA backup failed — see the MEGA card for details.', ok ? 'success' : 'error');
+    }
+
+    function openMegaLogin(intent) {
+      megaLoginIntent = intent || 'connect';
+      const sess = getMegaSession();
+      if (intent === 'restore' && sess && sess.session) { openMegaRestore(); return; }
+      document.getElementById('mega-email').value = (sess && sess.email) || '';
+      document.getElementById('mega-password').value = '';
+      document.getElementById('mega-2fa').value = '';
+      document.getElementById('mega-2fa').classList.add('hidden');
+      document.getElementById('mega-login-msg').classList.add('hidden');
+      document.getElementById('mega-modal').classList.remove('hidden');
+      document.getElementById('mega-email').focus();
+    }
+    function closeMegaLogin() { const m = document.getElementById('mega-modal'); if (m) m.classList.add('hidden'); }
+
+    async function submitMegaLogin(event) {
+      event.preventDefault();
+      const g = id => document.getElementById(id);
+      const email = g('mega-email').value.trim(), password = g('mega-password').value;
+      const code = g('mega-2fa').value.trim();
+      const msg = g('mega-login-msg'), btn = g('mega-login-btn');
+      msg.classList.add('hidden'); btn.disabled = true; btn.textContent = 'Signing in…';
+      try {
+        const mega = await loadMegaLib();
+        const opts = { email, password, keepalive: false, autoload: true };
+        if (code) opts.secondFactorCode = code;
+        const st = await new mega.Storage(opts).ready;
+        st.status = 'ready';
+        const session = st.toJSON();
+        if (session.options) { delete session.options.password; delete session.options.secondFactorCode; }
+        megaStorage = st;
+        const prev = getMegaSession();
+        const sameAccount = prev && prev.email && prev.email.toLowerCase() === email.toLowerCase();
+        setMegaSession({ email, session, linked: sameAccount ? !!prev.linked : false, lastDaily: sameAccount ? prev.lastDaily : '', lastBackupAt: sameAccount ? prev.lastBackupAt : '' });
+        g('mega-password').value = '';
+        closeMegaLogin();
+        megaStatus = 'off'; updateMegaCardUI();
+        const folder = await megaFolder(st);
+        const hasBackup = megaBackups(folder).length > 0;
+        const localEmpty = !store.invoices.length && !store.inventory.length;
+        if (megaLoginIntent === 'restore' || (hasBackup && localEmpty)) { openMegaRestore(); return; }
+        if (hasBackup && !getMegaSession().linked) {
+          setMegaStatus('conflict');
+          openConfirmModal('This MEGA account already has MedFlow backups',
+            'Confirm = see the backups and RESTORE one onto this device (replaces data here). Cancel = keep this device’s data; tap "Back up now" later if you want MEGA to be overwritten with it.',
+            false, () => openMegaRestore());
+          return;
+        }
+        showToast(`MEGA connected (${email}).`, 'success');
+        if (!localEmpty) syncToMega({ force: true });
+      } catch (e) {
+        const t = megaErrText(e);
+        if (t === 'MFA') { g('mega-2fa').classList.remove('hidden'); g('mega-2fa').focus(); msg.textContent = 'This account uses two-step login. Enter the 6-digit code and tap Sign in.'; }
+        else msg.textContent = t === 'NET' ? 'No internet connection.' : t;
+        msg.classList.remove('hidden');
+      } finally { btn.disabled = false; btn.textContent = 'Sign in'; }
+    }
+
+    async function openMegaRestore() {
+      if (!getMegaSession()) { openMegaLogin('restore'); return; }
+      const modal = document.getElementById('mega-restore-modal'), list = document.getElementById('mega-files-list');
+      modal.classList.remove('hidden');
+      list.innerHTML = '<div class="py-10 text-center text-xs text-slate-500">Loading backups from MEGA…</div>';
+      try {
+        const st = await getMegaStorage();
+        await st.reload(true); st.status = 'ready';
+        const files = megaBackups(await megaFolder(st)).slice(0, 30);
+        if (!files.length) { list.innerHTML = '<div class="py-10 text-center text-xs text-slate-400">No MedFlow backups in this MEGA account yet.</div>'; return; }
+        window.__megaFiles = files;
+        list.innerHTML = files.map((f, i) => `
+          <div class="p-3.5 rounded-xl bg-canvas border border-hairline flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-mono text-xs font-bold text-slate-900 truncate">${escapeHtml(f.name)}</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">${f.timestamp ? escapeHtml(new Date(f.timestamp * 1000).toLocaleString()) : ''} ${f.size ? '&bull; ' + Math.max(1, Math.round(f.size / 1024)) + ' KB' : ''}</p>
+            </div>
+            <button type="button" onclick="restoreMegaFile(${i})" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shrink-0 transition">Restore</button>
+          </div>`).join('');
+      } catch (e) {
+        const t = megaErrText(e);
+        if (t === 'SESSION') { clearMegaSession(); updateMegaCardUI(); closeMegaRestore(); openMegaLogin('restore'); return; }
+        list.innerHTML = `<div class="py-8 text-center text-xs text-rose-600">${escapeHtml(t === 'NET' ? 'No internet connection.' : t)}</div>`;
+      }
+    }
+    function closeMegaRestore() { const m = document.getElementById('mega-restore-modal'); if (m) m.classList.add('hidden'); }
+
+    async function restoreMegaFile(i) {
+      const f = (window.__megaFiles || [])[i];
+      if (!f) return;
+      try {
+        const buf = await f.downloadBuffer();
+        const parsed = JSON.parse(new TextDecoder().decode(buf));
+        closeMegaRestore();
+        // Only once the user has actually confirmed and the restore finished are device and MEGA in step
+        await applyBackupPayload(parsed, f.name, { onDone: () => {
+          const sess = getMegaSession();
+          if (sess) { sess.linked = true; setMegaSession(sess); setMegaStatus('synced'); }
+        } });
+      } catch (e) {
+        console.warn(e);
+        showToast('Could not restore that MEGA backup.', 'error');
+      }
+    }
+
+    function disconnectMega() {
+      openConfirmModal('Disconnect MEGA?', 'Automatic MEGA backup stops on this device and the saved sign-in is removed. Backups already in MEGA are NOT deleted.', false, () => {
+        clearMegaSession(); megaPending = false; clearTimeout(megaTimer); setMegaStatus('off');
+        showToast('MEGA disconnected on this device.', 'success');
+      });
     }
 
     // ---------------------------------------------------------------------
@@ -4484,6 +4918,7 @@
         if (sku && isTracked(sku)) { sku.stock -= line.qty; logStock(sku, -line.qty, 'Sale', finalBill.invoiceNo); }
       });
       store.invoices.unshift(finalBill);
+      markInvoiceNumberUsed(finalBill.invoiceNo);
       persistStore();
       initNewBillDraft(); renderSalesView(); renderInventoryView();
       return finalBill;
@@ -4509,6 +4944,33 @@
           await persistStore();
           renderSalesView(); renderInventoryView();
           showToast(`Voided ${inv.invoiceNo}${restoreStock ? ' & restored stock' : ''}.`, 'success');
+        }
+      );
+    }
+
+    function promptDeleteInvoice(invoiceId) {
+      const inv = store.invoices.find(b => b.id === invoiceId);
+      if (!inv) return;
+      // A voided bill whose stock was already put back must not restock twice
+      const canRestock = !(inv.status === 'void' && inv.stockRestored) &&
+        (inv.items || []).some(l => { const s = l.inventoryId && store.inventory.find(x => x.id === l.inventoryId); return s && isTracked(s); });
+      openConfirmModal(
+        `Delete bill ${inv.invoiceNo} permanently?`,
+        `The bill (${inv.patientName || 'Walk-in'}, ${formatCurrency(inv.grandTotal)}) is removed from this device and from sales totals. Its number ${inv.invoiceNo} will not be reused. Tip: use Void instead if you need to keep a record for audits.`,
+        canRestock,
+        async (restoreStock) => {
+          markInvoiceNumberUsed(inv.invoiceNo);
+          if (restoreStock && canRestock) {
+            (inv.items || []).forEach(line => {
+              const sku = line.inventoryId ? store.inventory.find(s => s.id === line.inventoryId) : null;
+              if (sku && isTracked(sku)) { const q = parseInt(line.qty, 10) || 0; sku.stock += q; logStock(sku, q, 'Bill deleted \u2013 restock', inv.invoiceNo); }
+            });
+          }
+          store.invoices = store.invoices.filter(b => b.id !== invoiceId);
+          await persistStore();
+          closeReceiptModal();
+          renderSalesView(); renderInventoryView(); syncHeaderState();
+          showToast(`Deleted ${inv.invoiceNo}${restoreStock && canRestock ? ' & restored stock' : ''}.`, 'success');
         }
       );
     }
@@ -4799,6 +5261,30 @@
     // =====================================================================
     // 10. ANDROID APK BUILDER & PWA MANIFEST / ICON GENERATOR
     // =====================================================================
+    const SW_SOURCE = [
+        "// MedFlow service worker: network-first (updates always arrive), cache fallback (works offline).",
+        "const VERSION = 'medflow-v5';",
+        "const CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];",
+        "self.addEventListener('install', e => {",
+        "  e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));",
+        "});",
+        "self.addEventListener('activate', e => {",
+        "  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));",
+        "});",
+        "self.addEventListener('fetch', e => {",
+        "  const req = e.request;",
+        "  if (req.method !== 'GET') return;",
+        "  const u = new URL(req.url);",
+        "  if (u.hostname === 'www.googleapis.com' || u.hostname === 'accounts.google.com') return; // never cache Google API/auth",
+        "  e.respondWith(",
+        "    fetch(req).then(res => {",
+        "      if (res.ok || res.type === 'opaque') { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }",
+        "      return res;",
+        "    }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))",
+        "  );",
+        "});"
+    ].join('\n');
+
     function createAppIconDataUrl(size = 512) {
       const canvas = document.createElement('canvas');
       canvas.width = size;
@@ -4922,20 +5408,7 @@
     }
 
     function downloadServiceWorkerFile() {
-      const swCode = [
-        "const CACHE_NAME = 'medflow-studio-v1';",
-        "const ASSETS = ['./', './index.html', './manifest.json'];",
-        "self.addEventListener('install', (e) => {",
-        "  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));",
-        "  self.skipWaiting();",
-        "});",
-        "self.addEventListener('activate', (e) => {",
-        "  e.waitUntil(self.clients.claim());",
-        "});",
-        "self.addEventListener('fetch', (e) => {",
-        "  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));",
-        "});"
-      ].join('\n');
+      const swCode = SW_SOURCE;
 
       const blob = new Blob([swCode], { type: 'application/javascript' });
       const url = URL.createObjectURL(blob);
@@ -5033,20 +5506,7 @@
         };
 
         // 3. Build offline Service Worker (sw.js)
-        const swContent = [
-          "const CACHE_NAME = 'medflow-studio-v1';",
-          "const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];",
-          "self.addEventListener('install', (e) => {",
-          "  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));",
-          "  self.skipWaiting();",
-          "});",
-          "self.addEventListener('activate', (e) => {",
-          "  e.waitUntil(self.clients.claim());",
-          "});",
-          "self.addEventListener('fetch', (e) => {",
-          "  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));",
-          "});"
-        ].join('\n');
+        const swContent = SW_SOURCE;
 
         // 4. Snapshot full index.html with linked manifest.json
         const cleanHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML.replace(
@@ -5200,8 +5660,10 @@
       }
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden' && syncPending) syncToDrive({});
+        if (document.visibilityState === 'hidden' && megaPending) syncToMega({});
       });
-      window.addEventListener('online', () => { if (syncPending) syncToDrive({}); });
+      window.addEventListener('online', () => { if (syncPending) syncToDrive({}); if (megaPending) syncToMega({}); });
+      if (dbHealthy && getMegaSession() && (store.invoices.length || store.inventory.length)) setTimeout(() => syncToMega({}), 4000);
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       }
