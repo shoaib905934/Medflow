@@ -1,5 +1,5 @@
 // MedFlow service worker: always fetch the newest app from GitHub; use the saved copy only when offline.
-const VERSION = 'medflow-v11';
+const VERSION = 'medflow-v14';
 const CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
