@@ -48,10 +48,43 @@ Each user taps **Clinic & Branding → Connect MEGA** and signs in with **their 
 - Each user backs up to **their own** MEGA / Google account. Nothing is shared through your GitHub site.
 - If two people share **one** phone and the same browser, they share the same data. Give each person their own phone, or their own Chrome profile.
 
+## Android APK (real installable app)
+The app is live at your GitHub Pages link, so the APK is a thin Android shell around that live site (a "Trusted Web Activity"). Every feature works (PDF, share, MEGA, offline), and **updates you push to GitHub reach the APK automatically**, so you never need to rebuild it.
+
+**Make the APK (about 5 minutes, free):**
+1. On a laptop open **https://www.pwabuilder.com**
+2. Paste your app link: `https://shoaib905934.github.io/Medflow/` and tap **Start**.
+3. Tap **Package for stores → Android → Generate package**.
+   - Package ID: e.g. `com.shreesai.medflow` (any unique name, lowercase)
+   - App name: your hospital name
+   - Signing key: **Create new** (keep the defaults)
+4. Download the **.zip**. Inside you get:
+   - `*.apk` – install this on phones (send it on WhatsApp/USB, tap it, allow "Install unknown apps")
+   - `*.aab` – only needed for the Google Play Store
+   - `signing.keystore` + `signing-key-info.txt` – **keep these safe forever** (needed for any future update / Play Store)
+   - `assetlinks.json` – see the next step
+
+**Remove the small address bar at the top (optional):** create a public repo named exactly `shoaib905934.github.io`, add the file `.well-known/assetlinks.json` (the one from the zip), and enable Pages for it. After a few minutes the APK opens full-screen like a native app.
+
+**Data note:** the APK uses Chrome's storage for your site on that phone, so it sees the same data as the Chrome / "Install app" version on that phone. A *different* phone always starts empty → use **Restore my data from MEGA** on the welcome screen.
+
 ## 3. Updating the app later
 Replace `index.html` on GitHub. Users get the new version the next time they open it (network-first). Their data is untouched.
 
-## 4. Daily-use rules built in
+## 4. First start
+The welcome screen asks for the **hospital/pharmacy name and address** (both required). Everything else (phone, licence, GSTIN, tagline, logo) can be added later in **Clinic**. With "Turn on automatic MEGA backup" ticked, the MEGA sign-in opens next and saves straight away.
+
+## 5. Adding stock from a purchase invoice
+**Stock → Upload purchase invoice** → choose the supplier's bill:
+- **Excel / CSV:** most accurate. Columns are found by their headings (Product/Item, Batch, Exp, Qty, Free, MRP, Rate…) wherever the table starts. Free quantity is added to stock.
+- **PDF:** a normal (non-scanned) PDF reads like Excel. A scanned PDF is read like a photo.
+- **Photo:** read with text recognition. Good lighting and a straight photo help. Always check those rows.
+Every row appears in an editable table first. Fix anything shown in red, then tap **Add to stock**. If the medicine and batch already exist, the quantity is topped up; a new batch becomes its own row.
+
+## 6. Printing
+**Clinic → Printer paper:** *A4 / Letter* for a normal printer, or *80 mm receipt* for a thermal receipt printer. Downloaded and shared PDFs are always A4.
+
+## 7. Daily-use rules built in
 - Expired medicine cannot be billed. Overselling is blocked (also across several lines of one bill).
 - **Void** a bill = it stays in records marked VOID with a reason (best for audits/GST).
 - **Delete** a bill = it's removed completely (trash icon in Day-Wise Sales). You can choose to put the stock back. A bill number is **never reused**, even after delete.
