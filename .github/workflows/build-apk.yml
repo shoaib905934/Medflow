@@ -1,14 +1,13 @@
 name: Build Android APK
 
-# Builds an installable MedFlow APK on GitHub's servers.
-# The APK opens your live site, so app updates you push to GitHub Pages reach it automatically.
-# Run it any time: Actions tab -> "Build Android APK" -> "Run workflow". Download from the run's "Artifacts".
+# Builds the MedFlow Android app on GitHub's servers and publishes it at
+# https://github.com/<you>/<repo>/releases/download/android/MedFlow.apk
+# The app shows your live site full screen (no browser bar), so site updates reach it automatically.
 on:
   workflow_dispatch:
   push:
     paths:
       - '.github/workflows/build-apk.yml'
-      - 'manifest.json'
       - 'icon-512.png'
 
 permissions:
@@ -19,7 +18,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       SITE_URL: https://shoaib905934.github.io/Medflow/
-      SITE_HOST: shoaib905934.github.io
       APP_ID: com.medflow.app
       APP_NAME: MedFlow
     steps:
@@ -32,7 +30,6 @@ jobs:
 
       - name: Prepare Android SDK (already on the runner)
         run: |
-          echo "SDK at $ANDROID_HOME"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" > /dev/null
 
@@ -40,11 +37,14 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Create the Android project (Trusted Web Activity)
+      - name: Create the Android project
         run: |
           set -e
-          mkdir -p twa/app/src/main/res/values twa/app/src/main/res/mipmap-xxxhdpi twa/app/src/main/res/mipmap-xxhdpi twa/app/src/main/res/mipmap-xhdpi twa/app/src/main/res/mipmap-hdpi twa/app/src/main/res/mipmap-mdpi
-          cd twa
+          J=android/app/src/main/java/com/medflow/app
+          R=android/app/src/main/res
+          mkdir -p $J $R/values $R/values-v23 $R/values-v27
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do mkdir -p $R/mipmap-$d; cp icon-512.png $R/mipmap-$d/ic_launcher.png; done
+          cd android
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
@@ -56,7 +56,6 @@ jobs:
           plugins { id 'com.android.application' version '8.5.2' apply false }
           EOF
           cat > gradle.properties <<'EOF'
-          android.useAndroidX=true
           org.gradle.jvmargs=-Xmx2g
           EOF
           cat > app/build.gradle <<EOF
@@ -69,59 +68,450 @@ jobs:
               minSdk 21
               targetSdk 34
               versionCode ${GITHUB_RUN_NUMBER}
-              versionName '1.0.${GITHUB_RUN_NUMBER}'
+              versionName '2.0.${GITHUB_RUN_NUMBER}'
             }
-            buildTypes { release { minifyEnabled false } }
+            signingConfigs {
+              release {
+                storeFile file('medflow.jks')
+                storePassword 'medflow-app'
+                keyAlias 'medflow'
+                keyPassword 'medflow-app'
+              }
+            }
+            buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
             compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            lint { abortOnError false; checkReleaseBuilds false }
           }
-          dependencies { implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0' }
           EOF
           cat > app/src/main/AndroidManifest.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
             <application android:label="${APP_NAME}" android:icon="@mipmap/ic_launcher" android:allowBackup="true"
-                android:theme="@android:style/Theme.Translucent.NoTitleBar">
-              <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
-              <activity android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
-                  android:exported="true" android:label="${APP_NAME}">
-                <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL" android:value="${SITE_URL}" />
-                <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR" android:resource="@color/status" />
-                <meta-data android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR" android:resource="@color/status" />
+                android:theme="@style/AppTheme" android:usesCleartextTraffic="false">
+              <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
+                  android:windowSoftInputMode="adjustResize"
+                  android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|uiMode">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN" />
                   <category android:name="android.intent.category.LAUNCHER" />
-                </intent-filter>
-                <intent-filter android:autoVerify="true">
-                  <action android:name="android.intent.action.VIEW" />
-                  <category android:name="android.intent.category.DEFAULT" />
-                  <category android:name="android.intent.category.BROWSABLE" />
-                  <data android:scheme="https" android:host="${SITE_HOST}" android:pathPrefix="/Medflow" />
                 </intent-filter>
               </activity>
             </application>
           </manifest>
           EOF
           cat > app/src/main/res/values/strings.xml <<EOF
+          <resources><string name="site_url" translatable="false">${SITE_URL}</string></resources>
+          EOF
+          cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-            <string name="asset_statements">[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "web", "site": "https://${SITE_HOST}" } }]</string>
+            <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+              <item name="android:windowBackground">@android:color/white</item>
+              <item name="android:statusBarColor">@android:color/white</item>
+              <item name="android:navigationBarColor">@android:color/white</item>
+            </style>
           </resources>
           EOF
-          cat > app/src/main/res/values/colors.xml <<'EOF'
-          <resources><color name="status">#FFFFFF</color></resources>
+          cat > app/src/main/res/values-v23/styles.xml <<'EOF'
+          <resources>
+            <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+              <item name="android:windowBackground">@android:color/white</item>
+              <item name="android:statusBarColor">@android:color/white</item>
+              <item name="android:navigationBarColor">@android:color/white</item>
+              <item name="android:windowLightStatusBar">true</item>
+            </style>
+          </resources>
           EOF
-          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp ../icon-512.png app/src/main/res/mipmap-$d/ic_launcher.png; done
+          cat > app/src/main/res/values-v27/styles.xml <<'EOF'
+          <resources>
+            <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+              <item name="android:windowBackground">@android:color/white</item>
+              <item name="android:statusBarColor">@android:color/white</item>
+              <item name="android:navigationBarColor">@android:color/white</item>
+              <item name="android:windowLightStatusBar">true</item>
+              <item name="android:windowLightNavigationBar">true</item>
+            </style>
+          </resources>
+          EOF
+          cat > app/src/main/java/com/medflow/app/MainActivity.java <<'EOF'
+          package com.medflow.app;
+
+          import android.app.Activity;
+          import android.content.ActivityNotFoundException;
+          import android.content.ContentValues;
+          import android.content.Intent;
+          import android.graphics.Color;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.os.StrictMode;
+          import android.print.PrintAttributes;
+          import android.print.PrintManager;
+          import android.provider.MediaStore;
+          import android.util.Base64;
+          import android.view.View;
+          import android.view.Window;
+          import android.webkit.CookieManager;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceError;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Toast;
+
+          import org.json.JSONObject;
+
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.OutputStream;
+
+          /** MedFlow: full-screen app around the live MedFlow site (no browser bar). */
+          public class MainActivity extends Activity {
+
+              private static final int FILE_REQUEST = 41;
+              private WebView web;
+              private ValueCallback<Uri[]> fileCallback;
+              private String home;
+              private String host;
+              private String pathPrefix;
+
+              // Runs inside the page: routes downloads, sharing and printing to Android.
+              private static final String SHIM =
+                  "(function(){if(window.__mfShim)return;window.__mfShim=1;" +
+                  "function b64(blob,cb){var r=new FileReader();r.onload=function(){cb(String(r.result).split(',')[1]||'')};r.readAsDataURL(blob);}" +
+                  "window.__mfSave=function(url,name,mime){fetch(url).then(function(r){return r.blob()}).then(function(b){b64(b,function(d){MedFlowAndroid.saveFile(d,name||'',b.type||mime||'',false)})}).catch(function(){MedFlowAndroid.toast('Could not save the file')});};" +
+                  "function grab(a){try{if(a&&a.download!==undefined&&a.hasAttribute('download')&&/^(blob|data):/.test(a.href)){window.__mfSave(a.href,a.download,'');return true;}}catch(e){}return false;}" +
+                  "var oc=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(grab(this))return;return oc.apply(this,arguments);};" +
+                  "var od=EventTarget.prototype.dispatchEvent;EventTarget.prototype.dispatchEvent=function(ev){if(ev&&ev.type==='click'&&this instanceof HTMLAnchorElement&&grab(this))return true;return od.apply(this,arguments);};" +
+                  "document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a'):null;if(a&&grab(a))e.preventDefault();},true);" +
+                  "window.print=function(){MedFlowAndroid.print(document.title||'MedFlow');};" +
+                  "navigator.canShare=function(){return true;};" +
+                  "navigator.share=function(d){d=d||{};return new Promise(function(res){if(d.files&&d.files.length){var f=d.files[0];b64(f,function(x){MedFlowAndroid.saveFile(x,f.name||'',f.type||'',true);res();});}else{MedFlowAndroid.shareText([d.title,d.text,d.url].filter(Boolean).join('\\n'));res();}});};" +
+                  "})();";
+
+              private static final String OFFLINE_HTML =
+                  "<html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head>" +
+                  "<body style='font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:90vh;text-align:center;color:#334155;padding:24px'>" +
+                  "<h2 style='margin:0 0 8px'>You're offline</h2><p style='margin:0 0 20px'>Connect to the internet once to open MedFlow. After that it also works offline.</p>" +
+                  "<a href='%s' style='background:#EA580C;color:#fff;padding:12px 24px;border-radius:99px;font-weight:bold;text-decoration:none'>Try again</a></body></html>";
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  home = getString(R.string.site_url);
+                  Uri h = Uri.parse(home);
+                  host = h.getHost();
+                  pathPrefix = h.getPath() == null ? "/" : h.getPath();
+                  if (Build.VERSION.SDK_INT < 29) {
+                      // Lets other apps (WhatsApp, PDF viewers) open files saved by MedFlow on older Android.
+                      StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().build());
+                  }
+
+                  Window w = getWindow();
+                  w.setStatusBarColor(Color.WHITE);
+                  w.setNavigationBarColor(Color.WHITE);
+                  if (Build.VERSION.SDK_INT >= 23) {
+                      int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                      if (Build.VERSION.SDK_INT >= 26) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                      w.getDecorView().setSystemUiVisibility(flags);
+                  }
+
+                  web = new WebView(this);
+                  web.setBackgroundColor(Color.WHITE);
+                  setContentView(web);
+
+                  WebSettings s = web.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setUseWideViewPort(true);
+                  s.setSupportZoom(false);
+                  s.setMediaPlaybackRequiresUserGesture(true);
+                  s.setUserAgentString(s.getUserAgentString() + " MedFlowApp/1");
+                  CookieManager.getInstance().setAcceptCookie(true);
+
+                  web.addJavascriptInterface(new Bridge(), "MedFlowAndroid");
+
+                  web.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          return handleUrl(request.getUrl());
+                      }
+
+                      @SuppressWarnings("deprecation")
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          return handleUrl(Uri.parse(url));
+                      }
+
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          view.evaluateJavascript(SHIM, null);
+                      }
+
+                      @Override
+                      public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                          if (request.isForMainFrame()) showOffline();
+                      }
+
+                      @SuppressWarnings("deprecation")
+                      @Override
+                      public void onReceivedError(WebView view, int code, String description, String failingUrl) {
+                          if (failingUrl != null && failingUrl.equals(view.getUrl())) showOffline();
+                      }
+                  });
+
+                  web.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                          if (fileCallback != null) fileCallback.onReceiveValue(null);
+                          fileCallback = callback;
+                          Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+                          pick.addCategory(Intent.CATEGORY_OPENABLE);
+                          pick.setType("*/*");
+                          if (params != null && params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                              pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                          }
+                          try {
+                              startActivityForResult(Intent.createChooser(pick, "Choose a file"), FILE_REQUEST);
+                          } catch (ActivityNotFoundException e) {
+                              fileCallback = null;
+                              return false;
+                          }
+                          return true;
+                      }
+                  });
+
+                  web.setDownloadListener((url, userAgent, contentDisposition, mimeType, length) -> {
+                      if (url.startsWith("blob:") || url.startsWith("data:")) {
+                          web.evaluateJavascript("window.__mfSave&&window.__mfSave(" + JSONObject.quote(url) + ",''," + JSONObject.quote(mimeType == null ? "" : mimeType) + ")", null);
+                      } else {
+                          openExternal(Uri.parse(url));
+                      }
+                  });
+
+                  if (savedInstanceState != null) {
+                      web.restoreState(savedInstanceState);
+                  } else {
+                      web.loadUrl(home);
+                  }
+              }
+
+              private boolean isOurPage(Uri u) {
+                  String scheme = u.getScheme();
+                  if (scheme == null || !(scheme.equals("https") || scheme.equals("http"))) return false;
+                  String path = u.getPath() == null ? "/" : u.getPath();
+                  String prefix = pathPrefix.endsWith("/") ? pathPrefix.substring(0, pathPrefix.length() - 1) : pathPrefix;
+                  return host != null && host.equalsIgnoreCase(u.getHost()) && path.startsWith(prefix);
+              }
+
+              private boolean handleUrl(Uri u) {
+                  if (isOurPage(u)) return false;
+                  openExternal(u);
+                  return true;
+              }
+
+              private void openExternal(Uri u) {
+                  try {
+                      Intent i = new Intent(Intent.ACTION_VIEW, u);
+                      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(i);
+                  } catch (Exception e) {
+                      toastNow("No app found to open this link");
+                  }
+              }
+
+              private void showOffline() {
+                  web.loadDataWithBaseURL(home, String.format(OFFLINE_HTML, home), "text/html", "utf-8", home);
+              }
+
+              private void toastNow(String msg) {
+                  Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+              }
+
+              private static String extensionFor(String mime) {
+                  if (mime == null) return "";
+                  if (mime.contains("pdf")) return ".pdf";
+                  if (mime.contains("json")) return ".json";
+                  if (mime.contains("csv")) return ".csv";
+                  if (mime.contains("png")) return ".png";
+                  if (mime.contains("jpeg")) return ".jpg";
+                  if (mime.contains("gzip")) return ".gz";
+                  if (mime.startsWith("text/")) return ".txt";
+                  return "";
+              }
+
+              private Uri writeToDownloads(byte[] data, String name, String mime) throws Exception {
+                  if (Build.VERSION.SDK_INT >= 29) {
+                      ContentValues v = new ContentValues();
+                      v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+                      v.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+                      v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/MedFlow");
+                      Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                      if (uri == null) throw new Exception("insert failed");
+                      try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+                          if (out == null) throw new Exception("no stream");
+                          out.write(data);
+                      }
+                      return uri;
+                  }
+                  File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                  if (dir == null) dir = getFilesDir();
+                  if (!dir.exists()) dir.mkdirs();
+                  File f = new File(dir, name);
+                  try (FileOutputStream out = new FileOutputStream(f)) {
+                      out.write(data);
+                  }
+                  return Uri.fromFile(f);
+              }
+
+              private class Bridge {
+                  @JavascriptInterface
+                  public void saveFile(String base64, String name, String mime, boolean share) {
+                      final byte[] data;
+                      try {
+                          data = Base64.decode(base64, Base64.DEFAULT);
+                      } catch (Exception e) {
+                          runOnUiThread(() -> toastNow("Could not save the file"));
+                          return;
+                      }
+                      final String type = (mime == null || mime.isEmpty()) ? "application/octet-stream" : mime;
+                      String n = (name == null || name.trim().isEmpty()) ? "MedFlow-" + System.currentTimeMillis() : name.trim();
+                      n = n.replaceAll("[\\\\/:*?\"<>|]", "-");
+                      if (!n.contains(".")) n += extensionFor(type);
+                      final String fileName = n;
+                      runOnUiThread(() -> {
+                          Uri uri;
+                          try {
+                              uri = writeToDownloads(data, fileName, type);
+                          } catch (Exception e) {
+                              toastNow("Could not save the file");
+                              return;
+                          }
+                          try {
+                              if (share) {
+                                  Intent send = new Intent(Intent.ACTION_SEND);
+                                  send.setType(type);
+                                  send.putExtra(Intent.EXTRA_STREAM, uri);
+                                  send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                  startActivity(Intent.createChooser(send, "Share"));
+                              } else {
+                                  toastNow("Saved to Downloads: " + fileName);
+                                  if (type.contains("pdf")) {
+                                      Intent view = new Intent(Intent.ACTION_VIEW);
+                                      view.setDataAndType(uri, type);
+                                      view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                      startActivity(view);
+                                  }
+                              }
+                          } catch (Exception ignored) {
+                              // Saved; no app available to open or share it.
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void shareText(String text) {
+                      runOnUiThread(() -> {
+                          Intent send = new Intent(Intent.ACTION_SEND);
+                          send.setType("text/plain");
+                          send.putExtra(Intent.EXTRA_TEXT, text);
+                          try {
+                              startActivity(Intent.createChooser(send, "Share"));
+                          } catch (Exception ignored) {
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void print(String title) {
+                      runOnUiThread(() -> {
+                          PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                          if (pm == null) return;
+                          String t = (title == null || title.isEmpty()) ? "MedFlow" : title;
+                          pm.print(t, web.createPrintDocumentAdapter(t), new PrintAttributes.Builder().build());
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void toast(String msg) {
+                      runOnUiThread(() -> toastNow(msg));
+                  }
+              }
+
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  if (requestCode == FILE_REQUEST && fileCallback != null) {
+                      Uri[] result = null;
+                      if (resultCode == RESULT_OK && data != null) {
+                          if (data.getClipData() != null && data.getClipData().getItemCount() > 0) {
+                              int n = data.getClipData().getItemCount();
+                              result = new Uri[n];
+                              for (int i = 0; i < n; i++) result[i] = data.getClipData().getItemAt(i).getUri();
+                          } else if (data.getData() != null) {
+                              result = new Uri[]{data.getData()};
+                          }
+                      }
+                      fileCallback.onReceiveValue(result);
+                      fileCallback = null;
+                      return;
+                  }
+                  super.onActivityResult(requestCode, resultCode, data);
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle outState) {
+                  super.onSaveInstanceState(outState);
+                  web.saveState(outState);
+              }
+
+              @SuppressWarnings("deprecation")
+              @Override
+              public void onBackPressed() {
+                  if (web != null && web.canGoBack()) {
+                      web.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+
+          EOF
+
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.MEDFLOW_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/medflow.jks
+            echo "Using your saved signing key (updates install over the old app)."
+          else
+            keytool -genkeypair -keystore android/app/medflow.jks -alias medflow -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass medflow-app -keypass medflow-app -dname "CN=MedFlow" -noprompt
+            echo "::warning::No MEDFLOW_KEYSTORE secret found. This APK uses a one-off key, so it cannot update an app built by another run."
+          fi
 
       - name: Build APK
-        working-directory: twa
-        run: gradle assembleDebug --no-daemon --stacktrace
+        working-directory: android
+        run: |
+          set -o pipefail
+          gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee ../build.log
+          cp app/build/outputs/apk/release/app-release.apk ../MedFlow.apk
 
-      - name: Show signing fingerprint (for assetlinks.json, optional)
-        working-directory: twa
-        run: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep -E "SHA256" || true
-
-      - name: Rename APK
-        run: cp twa/app/build/outputs/apk/debug/app-debug.apk MedFlow.apk
+      - name: Publish build log (only if the build failed)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f build.log ] || echo "no gradle log" > build.log
+          gh release view build-log >/dev/null 2>&1 || gh release create build-log --prerelease --title "Build log" --notes "Log of the last failed APK build."
+          gh release upload build-log build.log --clobber
 
       - uses: actions/upload-artifact@v4
         with:
@@ -132,5 +522,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view android >/dev/null 2>&1 || gh release create android --title "MedFlow Android app" --notes "Latest MedFlow APK. Direct link: https://github.com/${{ github.repository }}/releases/download/android/MedFlow.apk" --latest
+          gh release view android >/dev/null 2>&1 || gh release create android --title "MedFlow Android app" --notes "Latest MedFlow app. Direct link: https://github.com/${{ github.repository }}/releases/download/android/MedFlow.apk" --latest
           gh release upload android MedFlow.apk --clobber
