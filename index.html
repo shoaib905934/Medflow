@@ -6216,7 +6216,8 @@
     const APK_DOWNLOAD_URL = 'https://github.com/shoaib905934/Medflow/releases/download/android/MedFlow.apk';
 
     function isInsideAndroidApp() {
-      return (document.referrer || '').startsWith('android-app://com.medflow.app') ||
+      return /MedFlowApp\//.test(navigator.userAgent) ||
+        (document.referrer || '').startsWith('android-app://com.medflow.app') ||
         sessionStorage.getItem('medflow_in_app') === '1';
     }
     if ((document.referrer || '').startsWith('android-app://com.medflow.app')) {
